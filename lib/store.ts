@@ -4,15 +4,24 @@ import { supabase } from '@/lib/supabase'
 export interface CaseItem {
   id: string
   tracking_number?: string
+  caseNo?: string
   title: string
   description?: string
   status: string
   priority: string
+  priorityLevel?: string
   assigned_to?: string
   due_date?: string
   category?: string
   client_name?: string
+  complainantName?: string
+  targetOffice?: string
+  locationBarangay?: string
+  referredAt?: string
+  summaryEnglish?: string
+  referralLetter?: string
   created_at?: string
+  createdAt?: string
 }
 
 interface CaseStore {
