@@ -22,6 +22,7 @@ export interface CaseItem {
   referralLetter?: string
   created_at?: string
   createdAt?: string
+  [key: string]: any // Allows any other custom fields without throwing TypeScript errors
 }
 
 interface CaseStore {
