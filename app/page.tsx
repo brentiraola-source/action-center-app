@@ -1,138 +1,191 @@
-'use client';
+'use client'
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { useCaseStore } from '@/lib/store';
-import { FileText, Send, CheckCircle2, ArrowRight } from 'lucide-react';
-import Link from 'next/link';
+import { useEffect, useState } from 'react'
+import { useCaseStore } from '@/lib/store'
 
-export default function IntakePage() {
-  const router = useRouter();
-  const { addCase } = useCaseStore();
+export default function DashboardPage() {
+  const { cases, loading, fetchCases, updateCaseStatus } = useCaseStore()
+  const [filterStatus, setFilterStatus] = useState<string>('All')
 
-  const [rawText, setRawText] = useState('');
-  const [isParsing, setIsParsing] = useState(false);
-  const [parsedData, setParsedData] = useState<any | null>(null);
+  // Fetch cases from Supabase when the component mounts
+  useEffect(() => {
+    fetchCases()
+  }, [fetchCases])
 
-  const handleParse = () => {
-    if (!rawText.trim()) return;
-    setIsParsing(true);
+  // Filter cases based on selected status tab
+  const filteredCases = filterStatus === 'All' 
+    ? cases 
+    : cases.filter((c) => c.status.toLowerCase() === filterStatus.toLowerCase())
 
-    // Simulated intelligent parsing of incoming report/complaint
-    setTimeout(() => {
-      setParsedData({
-        complainantName: 'Maria Santos (Barangay Health Worker)',
-        locationBarangay: 'Palsong',
-        category: 'Infrastructure & Public Safety',
-        priorityLevel: 'High',
-        targetOffice: 'Municipal Engineering Office (MEO)',
-        summaryEnglish: 'Complainant reports damaged drainage canals causing stagnant water and health risks along the municipal road in Palsong.',
-        referralLetter: `REPUBLIC OF THE PHILIPPINES\nMUNICIPALITY OF BULA\nOFFICE OF THE MUNICIPAL MAYOR\n\nMEMORANDUM\n\nTO: Municipal Engineering Office (MEO)\nFROM: Office of the Municipal Mayor\nDATE: ${new Date().toLocaleDateString()}\nSUBJECT: Action Referral - Infrastructure Concern in Brgy. Palsong\n\n1. Forwarded herewith is a verified community concern regarding damaged drainage canals in Barangay Palsong.\n\n2. In line with our 72-hour SLA policy under the NIAC Action Center, please conduct an immediate ocular inspection and institute necessary remedial actions.\n\n3. Submit feedback report to this office promptly.\n\nFOR THE MAYOR:\nMAYOR NONOY IBASCO`,
-      });
-      setIsParsing(false);
-    }, 800);
-  };
-
-  const handleConfirmAndLog = () => {
-    if (!parsedData) return;
-
-    addCase({
-      complainantName: parsedData.complainantName,
-      locationBarangay: parsedData.locationBarangay,
-      category: parsedData.category,
-      priorityLevel: parsedData.priorityLevel,
-      targetOffice: parsedData.targetOffice,
-      summaryEnglish: parsedData.summaryEnglish,
-      referralLetter: parsedData.referralLetter,
-      referredAt: new Date().toISOString().slice(0, 10),
-    });
-
-    // Automatically navigate to the dashboard after logging
-    router.push('/dashboard');
-  };
+  // Helper for badge color coding based on status
+  const getStatusBadgeClass = (status: string) => {
+    switch (status.toLowerCase()) {
+      case 'resolved':
+      case 'completed':
+        return 'bg-green-100 text-green-800 border-green-200'
+      case 'in progress':
+      case 'ongoing':
+        return 'bg-blue-100 text-blue-800 border-blue-200'
+      case 'urgent':
+      case 'high priority':
+        return 'bg-red-100 text-red-800 border-red-200'
+      default:
+        return 'bg-amber-100 text-amber-800 border-amber-200' // Pending / Default
+    }
+  }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-8 font-sans">
+    <main className="min-h-screen bg-gray-50 p-6 md:p-8">
       <div className="max-w-7xl mx-auto space-y-6">
         
-        {/* Header */}
-        <div className="flex justify-between items-center bg-blue-900 text-white p-6 rounded-xl shadow-lg">
+        {/* Header Section */}
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold">Hi, Brent! </h1>
-            <p className="text-blue-200 text-sm">Needs, Inquiries, and Assistance Center of LGU Bula — Office of the Municipal Mayor </p>
+            <h1 className="text-2xl font-bold tracking-tight text-gray-900">
+              NIAC Executive Dashboard
+            </h1>
+            <p className="text-sm text-gray-500">
+              Real-time case monitoring and SLA tracking for LGU Bula.
+            </p>
           </div>
-          <Link
-            href="/dashboard"
-            className="flex items-center gap-2 bg-blue-800 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition border border-blue-700 shadow"
-          >
-            View Dashboard <ArrowRight className="w-4 h-4" />
-          </Link>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => fetchCases()}
+              className="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50 transition"
+            >
+              🔄 Refresh Data
+            </button>
+          </div>
         </div>
 
-        {/* Input Card */}
-        <div className="bg-white rounded-xl shadow border p-6 space-y-4">
-          <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
-            <FileText className="w-5 h-5 text-blue-600" /> Paste Raw Report / Complaint
-          </h2>
-          <textarea
-            rows={5}
-            className="w-full p-4 border rounded-xl bg-gray-50 text-gray-800 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
-            placeholder="Paste raw text report from SMS, Messenger, or blotter record here..."
-            value={rawText}
-            onChange={(e) => setRawText(e.target.value)}
-          />
-          <button
-            onClick={handleParse}
-            disabled={isParsing || !rawText.trim()}
-            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 text-white px-5 py-2.5 rounded-lg text-sm font-bold transition shadow"
-          >
-            <Send className="w-4 h-4" /> {isParsing ? 'Parsing Report...' : 'Parse & Generate Memo'}
-          </button>
+        {/* Metric Cards Banner */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="p-5 bg-white rounded-xl shadow-sm border border-gray-200">
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Total Cases</p>
+            <p className="text-3xl font-extrabold text-gray-900 mt-1">{cases.length}</p>
+          </div>
+          <div className="p-5 bg-white rounded-xl shadow-sm border border-gray-200">
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Pending / Active</p>
+            <p className="text-3xl font-extrabold text-amber-600 mt-1">
+              {cases.filter(c => c.status.toLowerCase() !== 'resolved' && c.status.toLowerCase() !== 'completed').length}
+            </p>
+          </div>
+          <div className="p-5 bg-white rounded-xl shadow-sm border border-gray-200">
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Resolved</p>
+            <p className="text-3xl font-extrabold text-green-600 mt-1">
+              {cases.filter(c => c.status.toLowerCase() === 'resolved' || c.status.toLowerCase() === 'completed').length}
+            </p>
+          </div>
+          <div className="p-5 bg-white rounded-xl shadow-sm border border-gray-200">
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Cloud Sync</p>
+            <p className="text-sm font-semibold text-emerald-600 mt-2 flex items-center gap-1.5">
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+              Supabase Connected
+            </p>
+          </div>
         </div>
 
-        {/* Parsed Preview Card */}
-        {parsedData && (
-          <div className="bg-white rounded-xl shadow border p-6 space-y-6 animate-in fade-in duration-200">
-            <h2 className="text-lg font-bold text-emerald-700 flex items-center gap-2">
-              <CheckCircle2 className="w-5 h-5" /> Parsed Case Preview
-            </h2>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-gray-50 p-4 rounded-xl text-sm border">
-              <div><strong className="text-gray-600">Complainant:</strong> <span className="text-gray-900 font-semibold">{parsedData.complainantName}</span></div>
-              <div><strong className="text-gray-600">Barangay:</strong> <span className="text-gray-900 font-semibold">{parsedData.locationBarangay}</span></div>
-              <div><strong className="text-gray-600">Category:</strong> <span className="text-gray-900 font-semibold">{parsedData.category}</span></div>
-              <div><strong className="text-gray-600">Priority Level:</strong> <span className="text-amber-700 font-bold">{parsedData.priorityLevel}</span></div>
-              <div><strong className="text-gray-600">Assigned Office:</strong> <span className="text-blue-700 font-bold">{parsedData.targetOffice}</span></div>
+        {/* Filter Tabs & Content Table */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+          
+          {/* Table Toolbar */}
+          <div className="p-4 border-b border-gray-200 flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              {['All', 'Pending', 'In Progress', 'Resolved'].map((status) => (
+                <button
+                  key={status}
+                  onClick={() => setFilterStatus(status)}
+                  className={`px-3 py-1.5 text-xs font-medium rounded-lg transition ${
+                    filterStatus === status
+                      ? 'bg-blue-600 text-white shadow-sm'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
+                >
+                  {status}
+                </button>
+              ))}
             </div>
-
-            <div className="space-y-1">
-              <strong className="text-sm text-gray-700">Summary:</strong>
-              <p className="p-3 bg-blue-50 border border-blue-100 rounded-lg text-sm text-gray-800">
-                {parsedData.summaryEnglish}
-              </p>
-            </div>
-
-            <div className="space-y-1">
-              <strong className="text-sm text-gray-700">Generated Memorandum Preview:</strong>
-              <textarea 
-                readOnly 
-                className="w-full h-40 p-3 text-xs font-mono border rounded-lg bg-gray-50 text-gray-800 leading-relaxed" 
-                value={parsedData.referralLetter} 
-              />
-            </div>
-
-            <div className="flex justify-end pt-2">
-              <button
-                onClick={handleConfirmAndLog}
-                className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-3 rounded-xl text-sm font-bold shadow-lg transition"
-              >
-                <CheckCircle2 className="w-5 h-5" /> Confirm and Log to Action Center
-              </button>
-            </div>
+            <p className="text-xs text-gray-500">
+              Showing {filteredCases.length} of {cases.length} entries
+            </p>
           </div>
-        )}
+
+          {/* Table Data or Loading State */}
+          {loading ? (
+            <div className="p-12 text-center text-gray-500">
+              <p className="animate-pulse">Loading real-time cases from Supabase...</p>
+            </div>
+          ) : filteredCases.length === 0 ? (
+            <div className="p-12 text-center text-gray-500">
+              <p>No cases found.</p>
+              <p className="text-xs mt-1">Submit a new case or adjust your filter.</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-gray-50 text-gray-500 text-xs uppercase tracking-wider border-b border-gray-200">
+                    <th className="py-3 px-4 font-semibold">Tracking #</th>
+                    <th className="py-3 px-4 font-semibold">Title / Description</th>
+                    <th className="py-3 px-4 font-semibold">Client</th>
+                    <th className="py-3 px-4 font-semibold">Priority</th>
+                    <th className="py-3 px-4 font-semibold">Status</th>
+                    <th className="py-3 px-4 font-semibold text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200 text-sm">
+                  {filteredCases.map((item) => (
+                    <tr key={item.id} className="hover:bg-gray-50 transition">
+                      <td className="py-3 px-4 font-mono text-xs text-gray-600">
+                        {item.tracking_number || item.id.slice(0, 8)}
+                      </td>
+                      <td className="py-3 px-4">
+                        <p className="font-semibold text-gray-900">{item.title}</p>
+                        {item.description && (
+                          <p className="text-xs text-gray-500 truncate max-w-xs">{item.description}</p>
+                        )}
+                      </td>
+                      <td className="py-3 px-4 text-gray-600">
+                        {item.client_name || 'N/A'}
+                      </td>
+                      <td className="py-3 px-4">
+                        <span className="text-xs font-medium text-gray-700 capitalize">
+                          {item.priority || 'Medium'}
+                        </span>
+                      </td>
+                      <td className="py-3 px-4">
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border ${getStatusBadgeClass(item.status)}`}>
+                          {item.status || 'Pending'}
+                        </span>
+                      </td>
+                      <td className="py-3 px-4 text-right space-x-2">
+                        {item.status.toLowerCase() !== 'resolved' && (
+                          <button
+                            onClick={() => updateCaseStatus(item.id, 'Resolved')}
+                            className="text-xs font-medium text-green-600 hover:text-green-800 bg-green-50 hover:bg-green-100 px-2.5 py-1 rounded transition"
+                          >
+                            Mark Resolved
+                          </button>
+                        )}
+                        {item.status.toLowerCase() !== 'in progress' && item.status.toLowerCase() !== 'resolved' && (
+                          <button
+                            onClick={() => updateCaseStatus(item.id, 'In Progress')}
+                            className="text-xs font-medium text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 px-2.5 py-1 rounded transition"
+                          >
+                            Set In Progress
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+        </div>
 
       </div>
-    </div>
-  );
+    </main>
+  )
 }
