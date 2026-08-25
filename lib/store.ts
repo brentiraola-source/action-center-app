@@ -1,77 +1,72 @@
-'use client';
-
-import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { create } from 'zustand'
+import { supabase } from '@/lib/supabase'
 
 export interface CaseItem {
-  id: string;
-  caseNo: string;
-  complainantName: string;
-  locationBarangay: string;
-  category: string;
-  priorityLevel: string;
-  targetOffice: string;
-  summaryEnglish: string;
-  referralLetter: string;
-  status: 'Pending' | 'Resolved' | 'Breached';
-  createdAt: string;
-  referredAt: string;
+  id: string
+  tracking_number?: string
+  title: string
+  description?: string
+  status: string
+  priority: string
+  assigned_to?: string
+  due_date?: string
+  category?: string
+  client_name?: string
+  created_at?: string
 }
 
 interface CaseStore {
-  cases: CaseItem[];
-  addCase: (newCase: Omit<CaseItem, 'id' | 'caseNo' | 'createdAt' | 'status'>) => void;
-  updateStatus: (id: string, status: 'Pending' | 'Resolved' | 'Breached') => void;
-  updateReferralDate: (id: string, referredAt: string) => void;
-  updateMemo: (id: string, referralLetter: string) => void;
-  importExternalCases: (importedCases: CaseItem[]) => void;
+  cases: CaseItem[]
+  loading: boolean
+  fetchCases: () => Promise<void>
+  addCase: (newCase: Omit<CaseItem, 'id' | 'created_at'>) => Promise<void>
+  updateCaseStatus: (id: string, status: string) => Promise<void>
 }
 
-export const useCaseStore = create<CaseStore>()(
-  persist(
-    (set) => ({
-      cases: [],
-      addCase: (caseData) =>
-        set((state) => {
-          // Starts numbering at 37 and increments based on existing items
-          const nextNumber = 37 + state.cases.length;
-          const formattedCaseNo = `Case #${String(nextNumber).padStart(4, '0')}`;
+export const useCaseStore = create<CaseStore>((set, get) => ({
+  cases: [],
+  loading: false,
 
-          return {
-            cases: [
-              {
-                ...caseData,
-                id: Math.random().toString(36).substring(2, 9),
-                caseNo: formattedCaseNo,
-                status: 'Pending',
-                createdAt: new Date().toISOString(),
-                referredAt: new Date().toISOString().slice(0, 10),
-              },
-              ...state.cases,
-            ],
-          };
-        }),
-      updateStatus: (id, status) =>
-        set((state) => ({
-          cases: state.cases.map((c) => (c.id === id ? { ...c, status } : c)),
-        })),
-      updateReferralDate: (id, referredAt) =>
-        set((state) => ({
-          cases: state.cases.map((c) => (c.id === id ? { ...c, referredAt } : c)),
-        })),
-      updateMemo: (id, referralLetter) =>
-        set((state) => ({
-          cases: state.cases.map((c) => (c.id === id ? { ...c, referralLetter } : c)),
-        })),
-      importExternalCases: (importedCases) =>
-        set((state) => {
-          const existingCaseNos = new Set(state.cases.map((c) => c.caseNo));
-          const newUniqueCases = importedCases.filter((c) => !existingCaseNos.has(c.caseNo));
-          return { cases: [...newUniqueCases, ...state.cases] };
-        }),
-    }),
-    {
-      name: 'niac-cases-storage',
+  fetchCases: async () => {
+    set({ loading: true })
+    const { data, error } = await supabase
+      .from('cases')
+      .select('*')
+      .order('created_at', { ascending: false })
+
+    if (error) {
+      console.error('Error fetching cases from Supabase:', error.message)
+      set({ loading: false })
+    } else {
+      set({ cases: data || [], loading: false })
     }
-  )
-);
+  },
+
+  addCase: async (newCase) => {
+    const { data, error } = await supabase
+      .from('cases')
+      .insert([newCase])
+      .select()
+
+    if (error) {
+      console.error('Error adding case to Supabase:', error.message)
+    } else if (data) {
+      set({ cases: [data[0], ...get().cases] })
+    }
+  },
+
+  updateCaseStatus: async (id, status) => {
+    const { error } = await supabase
+      .from('cases')
+      .update({ status })
+      .eq('id', id)
+
+    if (error) {
+      console.error('Error updating case status:', error.message)
+    } else {
+      set({
+        cases: get().cases.map((c) => (c.id === id ? { ...c, status } : c)),
+      })
+    }
+  },
+}))
